@@ -1,4 +1,4 @@
-function route_main(basin)
+function route_main(basin, nst, sst)
 flow_vel = 1.4;      % flow velocity    [m/s]
 flow_dif = 0.1;      % flow diffusivity [m^2/s]
 tstep    = 86400;    % timestep size    [s]
@@ -47,8 +47,11 @@ else
     strmname = 'nldas';
 end 
 
-nsteps = 12005;
-ssteps = 80;
+% nsteps = 12005;
+% ssteps = 80;
+
+nsteps = nst;
+ssteps = sst;
 
 % read gauge info
 gauge_list = dlmread([basedir basin '.inputs/' basin '.stn.list']);
@@ -97,8 +100,8 @@ runoff2_compact = zeros(ncells*ksteps, 1);
 runoff1_combine = zeros(ncells*ssteps, 1);
 runoff2_combine = zeros(ncells*ssteps, 1);
 
-runoff1_save = zeros(ncells*ssteps, nwins);
-runoff2_save = zeros(ncells*ssteps, nwins);
+% runoff1_save = zeros(ncells*ssteps, nwins);
+% runoff2_save = zeros(ncells*ssteps, nwins);
 runoff2_save_post = zeros(ncells*ssteps, nwins);
 
 Hprime = sparse(ngauges*ssteps, ncells*ssteps);
@@ -308,13 +311,13 @@ for w=1:nwins
     %    runoff2_compact = runoff1_compact;
     %end
     
-    runoff1_save(:, w) = runoff1_combine;
-    runoff2_save(:, w) = runoff2_combine;
+    %runoff1_save(:, w) = runoff1_combine;
+    %runoff2_save(:, w) = runoff2_combine;
     runoff2_save_post(:, w) = runoff2_combine_post;
     
 end
 
-save([outpdir basin '/' initname '_init_' strmname '_strm/smooth' int2str(ssteps) '/all_data.mat'], 'runoff1_save', 'runoff2_save', 'runoff2_save_post', ...
+save([outpdir basin '/' initname '_init_' strmname '_strm/smooth' int2str(ssteps) '/all_data.mat'], ...
     'streamflow_gauge1_all', 'streamflow_gauge2_all', 'streamflow_gauge2_post_all', 'streamflow_usgs', ...
     'ncols', 'nrows', 'ncells', 'flow_vel', 'tstep', 'nsteps', 'ksteps', 'ssteps', 'nwins', 'cmap', ...
     'basin_mask', 'grid_area', 'gauge_list', 'gauge_area', 'initname', 'strmname', 'runoff_bias_prio', 'runoff_bias_post', 'runoff_rms_prio', 'runoff_rms_post');
@@ -355,3 +358,4 @@ dlmwrite([outpdir,basin,'/data_all_day_',num2str(ssteps)],lon_lat_data,...
 ksteps
 
 end
+
