@@ -47,8 +47,8 @@ else
     strmname = 'nldas';
 end 
 
-nsteps = 706;
-ssteps = 70;
+nsteps = 12005;
+ssteps = 80;
 
 % read gauge info
 gauge_list = dlmread([basedir basin '.inputs/' basin '.stn.list']);
@@ -138,8 +138,10 @@ if (flag_svd)
 end
 
 %
-fin1 = fopen('runoff_precip/data_nldas.bin', 'r');
-fin2 = fopen('runoff_precip/data_3b42rt.bin', 'r');
+[basedir, basin, '.inputs/', basin, '.runoff.copy']
+[basedir, basin, '.inputs/', basin, '.runoff']
+fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff.copy'], 'r');
+fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
 
 % model spin-up
 null_runoff=basin_mask;
@@ -148,17 +150,17 @@ null_runoff(~isnan(basin_mask))=tmpa_mean;
 for s=1:ksteps
     
     % read precipitation
-    prec1 = fread(fin1, [ncols nrows], 'float32');
-    prec1 = flipud(prec1').*basin_mask;
+%    prec1 = fread(fin1, [ncols nrows], 'float32');
+%    prec1 = flipud(prec1').*basin_mask;
     
     % read runoff
-    runoff1 = fread(fin1, [ncols nrows], 'float32');
-    runoff1 = flipud(runoff1').* basin_mask/1000.*grid_area;
+    runoff1 = fscanf(fin1, '%f', [ncols nrows]);
+    runoff1 = runoff1.* basin_mask/1000.*grid_area;
     fillval = mean(runoff1(runoff1>0));
     runoff1(runoff1<=0) = fillval;
-    
+
     % Mu changes this
-    runoff1=null_runoff;
+%    runoff1=null_runoff;
     
     
     runoff1_tmp_compact = runoff1(:);
@@ -171,14 +173,14 @@ for s=1:ksteps
     % streamflow_gauge1(:, s) = H * runoff1_compact;
     
     % read precipitation
-    prec2 = fread(fin2, [ncols nrows], 'float32');
+%    prec2 = fread(fin2, [ncols nrows], 'float32');
     
     % read runoff
-    runoff2 = fread(fin2, [ncols nrows], 'float32');
+    runoff2 = fscanf(fin2, '%f', [ncols nrows]);
     
     
     % Mu changes this
-    runoff2=null_runoff;
+%    runoff2=null_runoff;
     
     
     runoff2_tmp_compact = runoff1_tmp_compact;
@@ -207,12 +209,12 @@ for w=1:nwins
     for s=1:ssteps
     
         % read precipitation
-        prec1 = fread(fin1, [ncols nrows], 'float32');
-        prec1 = flipud(prec1').*basin_mask;
+%        prec1 = fread(fin1, [ncols nrows], 'float32');
+%        prec1 = flipud(prec1').*basin_mask;
     
         % read runoff
-        runoff1 = fread(fin1, [ncols nrows], 'float32');
-        runoff1 = flipud(runoff1').* basin_mask/1000.*grid_area;
+        runoff1 = fscanf(fin1, '%f', [ncols nrows]);
+        runoff1 = runoff1.* basin_mask/1000.*grid_area;
         fillval = mean(runoff1(runoff1>0));
         runoff1(runoff1<=0) = fillval;
     
@@ -226,15 +228,12 @@ for w=1:nwins
         streamflow_gauge1(:, s) = H * runoff1_compact;
     
         % read precipitation
-        prec2 = fread(fin2, [ncols nrows], 'float32');
-        prec2 = flipud(prec2').*basin_mask;
+%        prec2 = fread(fin2, [ncols nrows], 'float32');
+%        prec2 = flipud(prec2').*basin_mask;
     
         % read runoff
-        runoff2 = fread(fin2, [ncols nrows], 'float32');
-        if (~tmpa_flag)
-            runoff2(runoff2>0) = tmpa_mean;
-        end
-        runoff2 = flipud(runoff2').* basin_mask/1000.*grid_area;
+        runoff2 = fscanf(fin2, '%f', [ncols nrows]);
+        runoff2 = runoff2.* basin_mask/1000.*grid_area;
         fillval = mean(runoff2(runoff2>0));
         runoff2(runoff2<=0) = fillval;
     
@@ -352,5 +351,7 @@ lon_lat_data=[lon,lat,data_2_w];
 
 dlmwrite([outpdir,basin,'/data_all_day_',num2str(ssteps)],lon_lat_data,...
     'delimiter', '\t', 'newline', 'unix','precision', 9);
+
+ksteps
 
 end
