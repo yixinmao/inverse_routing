@@ -61,9 +61,9 @@ spteps = str2num(skpst)
 nsteps = str2num(nst)-spteps
 
 checkd = [outpdir,basin,'/',initname,'_init_',strmname,...
-          '_strm/smooth',int2str(ssteps)];
+          '_strm/smooth',int2str(ssteps)]
 %% check output dir
-if exist(checkd,'dir')
+if ~exist(checkd,'dir')
    error('output directory does not exist');
 end
 
