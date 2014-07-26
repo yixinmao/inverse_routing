@@ -1,4 +1,4 @@
-function route_main(basin, nst, sst)
+function route_main(basin, nst, sst, skpst)
 flow_vel = 1.4;      % flow velocity    [m/s]
 flow_dif = 0.1;      % flow diffusivity [m^2/s]
 tstep    = 86400;    % timestep size    [s]
@@ -8,6 +8,12 @@ tstep    = 86400;    % timestep size    [s]
 % basin grid georeferences
 basedir='/raid3/muxiao/bpa_inverse_routing/data/inverse_ro/input/';
 outpdir='/raid3/muxiao/bpa_inverse_routing/data/inverse_ro/output/';
+
+%% check output dir
+if exist([],'dir')
+   error();
+end
+
 
 f_header = [basedir basin '.inputs/' basin '.header'];
 fid = fopen(f_header, 'r');
@@ -50,14 +56,24 @@ end
 % nsteps = 12005;
 % ssteps = 80;
 
-nsteps = nst;
-ssteps = sst;
+ssteps = str2num(sst)
+spteps = str2num(skpst)
+nsteps = str2num(nst)-spteps
+
+checkd = [outpdir,basin,'/',initname,'_init_',strmname,...
+          '_strm/smooth',int2str(ssteps)];
+%% check output dir
+if exist(checkd,'dir')
+   error('output directory does not exist');
+end
+
 
 % read gauge info
 gauge_list = dlmread([basedir basin '.inputs/' basin '.stn.list']);
 
 streamflow_usgs = dlmread([basedir basin '.inputs/' basin '.stn.obs']);
-streamflow_usgs = streamflow_usgs'/35.3146662127; %% for what?
+streamflow_usgs(1:spteps,:) = [];
+streamflow_usgs = streamflow_usgs'/35.3146662127; %% 
 
 %% do basin and gauge analysis
 [ basin_mask grid_lat grid_lon flow_length grid_area flow_accum ...
@@ -79,6 +95,7 @@ HH = state_model(basin_mask, basin_mask_gauge, flow_length_gauge, ...
     flow_vel, tstep);
 
 ksteps = ceil(max(max(max(flow_length_gauge)/flow_vel/tstep)));
+ksteps
 
 H = reshape(HH, ngauges, ncells*ksteps);
 
@@ -145,6 +162,12 @@ end
 [basedir, basin, '.inputs/', basin, '.runoff']
 fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff.copy'], 'r');
 fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
+
+% skip the first spteps days
+for skipi=1:spteps
+    runoff1 = fscanf(fin1, '%f', [ncols nrows]);
+    runoff2 = fscanf(fin2, '%f', [ncols nrows]);
+end
 
 % model spin-up
 null_runoff=basin_mask;
@@ -216,19 +239,19 @@ for w=1:nwins
 %        prec1 = flipud(prec1').*basin_mask;
     
         % read runoff
-        runoff1 = fscanf(fin1, '%f', [ncols nrows]);
-        runoff1 = runoff1.* basin_mask/1000.*grid_area;
-        fillval = mean(runoff1(runoff1>0));
-        runoff1(runoff1<=0) = fillval;
+%        runoff1 = fscanf(fin1, '%f', [ncols nrows]);
+%        runoff1 = runoff1.* basin_mask/1000.*grid_area;
+%        fillval = mean(runoff1(runoff1>0));
+%        runoff1(runoff1<=0) = fillval;
     
-        runoff1_tmp_compact = runoff1(:);
-        runoff1_tmp_compact(isnan(runoff1_tmp_compact)) = [];
+%        runoff1_tmp_compact = runoff1(:);
+%        runoff1_tmp_compact(isnan(runoff1_tmp_compact)) = [];
     
         % shift for one step
-        runoff1_compact = circshift(runoff1_compact, [ncells 0]);
-        runoff1_compact(1:ncells) = runoff1_tmp_compact;
+%        runoff1_compact = circshift(runoff1_compact, [ncells 0]);
+%        runoff1_compact(1:ncells) = runoff1_tmp_compact;
         
-        streamflow_gauge1(:, s) = H * runoff1_compact;
+%        streamflow_gauge1(:, s) = H * runoff1_compact;
     
         % read precipitation
 %        prec2 = fread(fin2, [ncols nrows], 'float32');
@@ -352,10 +375,9 @@ lon=0.5*cellsize+xllcorner+(n-1)*cellsize;
 lat=0.5*cellsize+yllcorner+(bn-1)*cellsize-(m-1)*cellsize;
 lon_lat_data=[lon,lat,data_2_w];
 
-dlmwrite([outpdir,basin,'/data_all_day_',num2str(ssteps)],lon_lat_data,...
-    'delimiter', '\t', 'newline', 'unix','precision', 9);
-
-ksteps
+dlmwrite([outpdir,basin,'/data_all_day_',num2str(ssteps),...
+          '_skip',skpst],lon_lat_data,'delimiter', '\t', ...
+          'newline', 'unix','precision', 9);
 
 end
 

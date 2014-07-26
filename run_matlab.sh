@@ -3,5 +3,8 @@
 # basin="pend"
 
 basin=$1
-./run_route_assim.sh /usr/local/MATLAB/R2013a $basin
+nst=$2
+sst=$3
+spkt=$4
+./run_route_assim.sh /usr/local/MATLAB/R2013a $basin $nst $sst $spkt
 
