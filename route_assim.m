@@ -165,8 +165,8 @@ fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
 
 % skip the first spteps days
 for skipi=1:spteps
-    runoff1 = fscanf(fin1, '%f', [ncols nrows]);
-    runoff2 = fscanf(fin2, '%f', [ncols nrows]);
+    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
+    runoff2 = fscanf(fin2, '%f', [nrows ncols]);
 end
 
 % model spin-up
@@ -180,7 +180,7 @@ for s=1:ksteps
 %    prec1 = flipud(prec1').*basin_mask;
     
     % read runoff
-    runoff1 = fscanf(fin1, '%f', [ncols nrows]);
+    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
     runoff1 = runoff1.* basin_mask/1000.*grid_area;
     fillval = mean(runoff1(runoff1>0));
     runoff1(runoff1<=0) = fillval;
@@ -202,7 +202,7 @@ for s=1:ksteps
 %    prec2 = fread(fin2, [ncols nrows], 'float32');
     
     % read runoff
-    runoff2 = fscanf(fin2, '%f', [ncols nrows]);
+    runoff2 = fscanf(fin2, '%f', [nrows ncols]);
     
     
     % Mu changes this
@@ -258,7 +258,7 @@ for w=1:nwins
 %        prec2 = flipud(prec2').*basin_mask;
     
         % read runoff
-        runoff2 = fscanf(fin2, '%f', [ncols nrows]);
+        runoff2 = fscanf(fin2, '%f', [nrows ncols]);
         runoff2 = runoff2.* basin_mask/1000.*grid_area;
         fillval = mean(runoff2(runoff2>0));
         runoff2(runoff2<=0) = fillval;
