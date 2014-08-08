@@ -372,7 +372,7 @@ end
 [bm,bn]=size(basin_mask);
 [m,n]=find(~isnan(basin_mask));
 lon=0.5*cellsize+xllcorner+(n-1)*cellsize;
-lat=0.5*cellsize+yllcorner+(bn-1)*cellsize-(m-1)*cellsize;
+lat=0.5*cellsize+yllcorner+(bm-1)*cellsize-(m-1)*cellsize;
 lon_lat_data=[lon,lat,data_2_w];
 
 dlmwrite([outpdir,basin,'/data_all_day_',num2str(ssteps),...
