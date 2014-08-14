@@ -47,7 +47,7 @@ hslon = (1-cos((grid_lon-ds1_lon)/180*pi))/2;
 flow_dist = 2*r_earth*asin(sqrt(hslat + cos(grid_lat/180*pi).*cos(ds1_lat/180*pi).*hslon));
 
 % downstream grid search at all orders
-search_max = 200;
+search_max = 2000;
 ds_i = zeros(nrows, ncols, search_max);
 ds_j = zeros(nrows, ncols, search_max);
 ds_length = zeros(nrows, ncols, search_max);

@@ -27,7 +27,7 @@ end
 fclose(fid);
 
 
-georef = [xllcorner yllcorner cellsize nodata_value];
+georef = [xllcorner yllcorner cellsize NODATA_value];
 
 % read flow directions
 flow_dir = dlmread([basedir basin '.inputs/' basin '.dir']);
