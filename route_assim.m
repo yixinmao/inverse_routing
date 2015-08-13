@@ -6,8 +6,8 @@ tstep    = 86400;    % timestep size    [s]
 % basin = 'pend';
 
 % basin grid georeferences
-basedir='/raid3/muxiao/bpa_inverse_routing/data/inverse_ro/input/';
-outpdir='/raid3/muxiao/bpa_inverse_routing/data/inverse_ro/output/';
+basedir='/raid2/ymao/VIC_RBM_east_RIPS/inverse_routing/input/';
+outpdir='/raid2/ymao/VIC_RBM_east_RIPS/inverse_routing/output/';
 
 %% check output dir
 if exist([],'dir')
@@ -158,9 +158,9 @@ if (flag_svd)
 end
 
 %
-[basedir, basin, '.inputs/', basin, '.runoff.copy']
+[basedir, basin, '.inputs/', basin, '.runoff']  % hacked by Yixin
 [basedir, basin, '.inputs/', basin, '.runoff']
-fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff.copy'], 'r');
+fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r'); % hacked by Yixin
 fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
 
 % skip the first spteps days
