@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -S /bin/bash
+#$ -q default.q
+#$ -M yixinmao@uw.edu
+#$ -m abe
+
+./prepare_initial_runoff.py --cfg cfg/prepare_initial_runoff.Tennessee.test.cfg
+

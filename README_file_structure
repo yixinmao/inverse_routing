@@ -1,0 +1,24 @@
+[matlab_inverse]
+    Inverse routing method source code
+
+[input/<basin>.inputs]
+    Inputs for inverse routing for a certain basin
+
+[output/<basin>]
+    Direct outputs from inverse routing
+
+[scripts]
+    All scripts for pre-process, post-process, result analysis, etc.
+    See 'README_file_structure' for detailed script usage
+
+[data]
+    Original or processed streamflow data
+
+[postprocess_results] -> Need to change data structure!!
+    Results for result checking/analysis
+    Including:
+        - Lohman routing parameters and results;
+        - Processed inverse-routed total runoff;
+        - Plots;
+        - etc.  
+

@@ -1,0 +1,9 @@
+[Tennessee]
+    Original USGS data
+
+<basin>_stn_list
+    A list of station info for a certain basin (i.e., a certain inverse routing run)
+    Format: <station_name> <grid_lat> <grid_lon> (<column>)
+        where <station_name> - station name;
+              <grid_lat>,  <grid_lon> - lat and lon of corresponding grid cell;
+              <column> - [optional] if USGS data, the column number of flow data

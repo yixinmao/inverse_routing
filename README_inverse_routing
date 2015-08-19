@@ -1,0 +1,94 @@
+Steps for running inverse routing method:
+
+#======================================================#
+# (1) Input preparation
+#======================================================#
+Step 0. Prepare file structure
+    As required by the inverse routing method, there should be:
+        - a basin name (e.g., called 'basin');
+        - an input directory for this basin, must named 'basin.inputs'.
+            e.g., ./input/basin.inputs
+            All input files should be under this directory
+        - an output directory for this basin, must named 'basin.outputs'
+            e.g., ./output/basin
+            All method output files would be under this directory
+
+Step 1. Generate flow direciton files
+    Flow direction file in ascii format;
+    6-line header (must named 'basin.header') and data matrix (must named 'basin.dir') must be put in two separate files;
+    Flow direction is in the format of 1-8; 9 for the outlet (one and only one outlet)
+    These two files should be put under ./input/basin.inputs
+
+Step 2. Generate station files
+    Run './scripts/preprocess/prepare_stn.obs.py', with a config file
+    This script generates two station files:
+        'basin.stn.list' - gauge station information list;
+        'basin.stn.obs' - gauge data
+    These two files should be put under ./input/basin.inputs
+
+Step 3. Generate initial runoff field file
+    Run './scripts/preprocess/prepare_initial_runoff.py', with a config file
+    This script generates initial runoff file:
+        'basin.runoff'
+    This file should be put under ./input/basin.inputs
+
+Step 4. Prepare other parameters/file structures
+    Step 4.1. Change hard-coded parameters in the inverse routing code
+        In script './matlab_inverse/route_assim.m', change the following AS NEEDED:
+        - flow_vel (line 2)
+            Flow velocity, unit: [m/s]; 
+            should be consistent with value used in routing model
+        - tstep (line 4)
+            Time step length, unit: [s];
+        - Note: flow_dif in line 3 is not used by the method
+        - basedir, outdir (line 9, 10)
+            Input and output base directories
+
+        If any change is made, need to compile Matlab scripts under './matlab_inverse/':
+            Command: mcc -m route_assim.m
+
+    Step 4.2. Prepare output file directories
+        Under directory './output/basin', make an empty subdirectory called:
+            ./output/basin/null_init_usgs_strm/smooth<smooth_window>,
+        where <smooth_window> is the length of smooth window
+
+#======================================================#
+# (2) Run inverse routing
+#======================================================#
+Step 5. Run inverse routing model
+    Run: ./matlab_inverse/run_matlab.sh <basin> <total_steps> <smooth_window> <skip_teps>
+    where <basin> - basin name
+          <total_steps> - total number of input time steps
+          <smooth_window> - length of smooth window
+          <skip_teps> - number of time steps to skip
+
+#======================================================#
+# (3) Post-process and check results
+#======================================================#
+Step 6. Convert inverse routing output to VIC-output format, and calculate runoff stats
+    Run: './scripts/postprocess/convert_inverse_result_to_vic_and_calc_stats.py' with config file
+    This scripts converts the result to VIC output format, which is in the format of Lohmann routing model input, and calculate runoff temporal stats
+
+Step 7. Check inversely-routed runoff
+    Step 7.1. Prepare Lohmann routing input parameters
+        Parameter files need to prepare:
+            - Global file
+                Set velocity to be the same as in inverse route
+                Set diffusivity to large (e.g., 2000)
+            - Station file
+            - UH box file
+                1.0 for the first time step, 0.0 for the rest
+            - xmask file (flow distance)
+                Run './scripts/results_analysis/prepare_xmask_for_route.py' with config file
+                This generates xmask file, using consistent method as in inverse route
+
+    Step 7.2. Run Lohmann routing model
+        Run '/raid2/ymao/VIC_RBM_east_RIPS/RIPS/model_run/source/Lohmann_route/route <config_file> > log'
+        From the log file, can extract grid cell list upstream of each station
+
+    Step 7.3. Compare routing results with streamflow observation
+        Run './scripts/results_analysis/plot_cmp_flow_obs_routed.py' with config file
+
+
+
+
