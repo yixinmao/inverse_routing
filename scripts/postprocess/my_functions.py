@@ -80,7 +80,7 @@ def config_type(value):
             return val_list
 # -------------------------------------------------------------------- #
 
-def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, start_date_data, time_step, latlon_precision):
+def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, start_date_data, time_step, ksteps, latlon_precision):
     ''' This function reads in inverse routing output 
     Input:
         output_dir: inverse routing output directory (e.g., './output/basin')
@@ -89,6 +89,7 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
         skip_steps: Number of time steps to skip. If n_runs==1, this is a number; If n_runs==3, this must be a list: [0, dt, 2dt], where dt = smooth_window / 3
         start_date_data: start date of inverse routing input (before skipping days) [dt.datetime]
         time_step: inverse routing time step [unit: hour]
+        ksteps: max number of time steps the water needs to flow from the most upstream headwater to the most downstream gauge station; this is an stdout from inverse routing run
         latlon_precision: number of figures after decimal point for lat and lon
 
     Return:
@@ -136,9 +137,9 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
             # Convert data to pd.Series
             total_runoff = np.asarray([float(j) for j in line_split[2:]]) # data
             if n_runs==1:
-                start_date = start_date_data + dt.timedelta(hours=(skip_steps)*time_step)
+                start_date = start_date_data + dt.timedelta(hours=(skip_steps+ksteps)*time_step)
             elif n_runs==3:
-                start_date = start_date_data + dt.timedelta(hours=(skip_steps[i])*time_step)
+                start_date = start_date_data + dt.timedelta(hours=(skip_steps[i]+ksteps)*time_step)
             end_date = start_date + dt.timedelta(hours=time_step*(len(total_runoff)-1))
             index = pd.date_range(start_date, end_date, freq='{:d}H'.format(time_step))  # index
             if lat_lon in dict_list_s.keys():  # if key already exist
@@ -146,6 +147,7 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
             else:  # if key not exist yet
                 dict_list_s[lat_lon] = []
                 dict_list_s[lat_lon].append(pd.Series(total_runoff, index=index))
+
         f.close()
 
     #================================================# 
@@ -156,8 +158,6 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
     if n_runs==3:  # if 3 runs
         for key in dict_list_s.keys():  # for each grid cell
             print 'Combining grid cell {}...'.format(key)
-            # Initialize combined Series
-            dict_s[key] = pd.Series()
             # Select out Series at this grid cell
             s = [dict_list_s[key][0], dict_list_s[key][1], dict_list_s[key][2]]
             # Determine the middle slices of each of the three runs

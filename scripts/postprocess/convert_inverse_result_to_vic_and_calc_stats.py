@@ -28,6 +28,7 @@ dict_s_total_runoff = my_functions.read_inverse_route_output(\
                                        skip_steps=cfg['PARAM']['skip_steps'], \
                                        start_date_data=start_date, \
                                        time_step=cfg['PARAM']['time_step'], \
+                                       ksteps=cfg['PARAM']['ksteps'], \
                                        latlon_precision=cfg['PARAM']['latlon_precision'])
 
 # Select full water years
