@@ -35,7 +35,7 @@ fdir = np.loadtxt(cfg['INPUT']['fdir_path'], dtype=int)
 # initialize dataframe
 df_vic_output = pd.DataFrame()
 # Prepare a pd.Series with all -1 (for inactive grid cells)
-s_inactive = pd.Series(-1, index=pd.date_range(start_date, end_date), freq='24H')
+s_inactive = pd.Series(-1, index=pd.date_range(start_date, end_date, freq='24H'))
 # Loop over each grid cell in column order
 lat_max = yllcorner + nrows*cellsize - cellsize/2.0  # Northmost grid cell lat
 for j in range(ncols):
