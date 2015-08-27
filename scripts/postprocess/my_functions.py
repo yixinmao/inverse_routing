@@ -80,13 +80,14 @@ def config_type(value):
             return val_list
 # -------------------------------------------------------------------- #
 
-def read_inverse_route_output(output_dir, smooth_window, skip_steps, start_date, time_step, latlon_precision):
+def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, start_date_data, time_step, latlon_precision):
     ''' This function reads in inverse routing output 
     Input:
         output_dir: inverse routing output directory (e.g., './output/basin')
         smooth_window: length of smooth window
-        skip_steps: number of time steps to skip
-        start_date: start date of inverse routing input (before skipping days) [dt.datetime]
+        n_runs: Number of runs; Select from: 1 - only one run; 3 - 3 runs; e.g., if smooth window is 60, then skip 0, 20, 40 stpes
+        skip_steps: Number of time steps to skip. If n_runs==1, this is a number; If n_runs==3, this must be a list: [0, dt, 2dt], where dt = smooth_window / 3
+        start_date_data: start date of inverse routing input (before skipping days) [dt.datetime]
         time_step: inverse routing time step [unit: hour]
         latlon_precision: number of figures after decimal point for lat and lon
 
@@ -97,25 +98,83 @@ def read_inverse_route_output(output_dir, smooth_window, skip_steps, start_date,
     import numpy as np
     import pandas as pd
     import datetime as dt
-    
-    filename = '{}/data_all_day_{:d}_skip{:d}'.format(output_dir, smooth_window, skip_steps)
-    dict_s = {} # a dictionary; keys: 'lat_lon'; element: Series of total runoff
-    f = open(filename, 'r')
-    while 1:
-        line = f.readline().rstrip("\n")
-        line_split = line.split('\t')
-        if line=="":
-            break
-        
-        # Get lat lon info
-        lat_lon = '{:.{}f}_{:.{}f}'.format(float(line_split[1]), latlon_precision, \
-                                           float(line_split[0]), latlon_precision)
-        # Convert data to pd.Series
-        total_runoff = np.asarray([float(i) for i in line_split[2:]]) # data
-        end_date = start_date + dt.timedelta(hours=time_step)*(len(total_runoff)-1)
-        index = pd.date_range(start_date, end_date, freq='{:d}H'.format(time_step))  # index
-        dict_s[lat_lon] = pd.Series(total_runoff, index=index)
-    f.close()
+   
+    #================================================# 
+    # Load all inverse routing output
+    #================================================# 
+    print 'Loading inverse route output...'
+    dict_list_s = {} # a dictionary; keys: 'lat_lon'; element: a list of Series of total runoff
+    list_filename = []
+    if n_runs==3:  # if 3 runs
+        dskp = smooth_window / 3
+        # Check if skip_steps are correct
+        if skip_steps[0]!=0 or skip_steps[1]!=dskp or skip_steps[2]!=2*dskp:
+            print 'Error: smooth_window and skip_steps do not match!'
+            exit()
+        # Set filenames
+        for skpst in skip_steps:
+            list_filename.append('{}/data_all_day_{:d}_skip{:d}'\
+                            .format(output_dir, smooth_window, skpst))
+    elif n_runs==1:  # if 1 run
+        list_filename.append('{}/data_all_day_{:d}_skip{:d}'\
+                        .format(output_dir, smooth_window, skip_steps))
+    else:
+        print 'Error: unsupported n_runs!'
+        exit()
+
+    for i, filename in enumerate(list_filename): # loop over each file
+        f = open(filename, 'r')
+        while 1:
+            line = f.readline().rstrip("\n")
+            line_split = line.split('\t')
+            if line=="":
+                break
+            
+            # Get lat lon info
+            lat_lon = '{:.{}f}_{:.{}f}'.format(float(line_split[1]), latlon_precision, \
+                                               float(line_split[0]), latlon_precision)
+            # Convert data to pd.Series
+            total_runoff = np.asarray([float(j) for j in line_split[2:]]) # data
+            if n_runs==1:
+                start_date = start_date_data + dt.timedelta(hours=(skip_steps)*time_step)
+            elif n_runs==3:
+                start_date = start_date_data + dt.timedelta(hours=(skip_steps[i])*time_step)
+            end_date = start_date + dt.timedelta(hours=time_step*(len(total_runoff)-1))
+            index = pd.date_range(start_date, end_date, freq='{:d}H'.format(time_step))  # index
+            if lat_lon in dict_list_s.keys():  # if key already exist
+                dict_list_s[lat_lon].append(pd.Series(total_runoff, index=index))
+            else:  # if key not exist yet
+                dict_list_s[lat_lon] = []
+                dict_list_s[lat_lon].append(pd.Series(total_runoff, index=index))
+        f.close()
+
+    #================================================# 
+    # If 3 runs, combine
+    #================================================#
+    dict_s = {}  # final return data - a dictionary; keys: 'lat_lon'; 
+                 #                                   element: a series of total runoff
+    if n_runs==3:  # if 3 runs
+        for key in dict_list_s.keys():  # for each grid cell
+            print 'Combining grid cell {}...'.format(key)
+            dict_s[key] = pd.Series()  # initialize combined Series
+            s1 = dict_list_s[key][0]
+            s2 = dict_list_s[key][1]
+            s3 = dict_list_s[key][2]
+            first_date = start_date_data + dt.timedelta(hours=dskp*time_step)
+            last_date = sorted([s1.index[-1], s2.index[-1], s3.index[-1]])[0]
+            for i, date in enumerate(pd.date_range(\
+                        first_date, last_date, freq='{:d}H'.format(time_step))):
+                        # Loop over each time step
+                if (i/dskp)%3==0:  # use s1
+                    dict_s[key][date] = s1[date]
+                elif (i/dskp)%3==1:  # use s2
+                    dict_s[key][date] = s2[date]
+                else:  # use s3
+                    dict_s[key][date] = s3[date]
+                
+    elif n_runs==1:  # if 1 run, directly copy data
+        for key in dict_list_s.keys():
+            dict_s[key] = dict_list_s[key][0]
 
     return dict_s
 

@@ -24,10 +24,21 @@ start_date = dt.datetime(cfg['PARAM']['start_date'][0], \
 dict_s_total_runoff = my_functions.read_inverse_route_output(\
                                        cfg['INPUT']['inv_ro_basin_output_dir'], \
                                        smooth_window=cfg['PARAM']['smooth_window'], \
+                                       n_runs=cfg['PARAM']['n_runs'], \
                                        skip_steps=cfg['PARAM']['skip_steps'], \
-                                       start_date=start_date, \
+                                       start_date_data=start_date, \
                                        time_step=cfg['PARAM']['time_step'], \
                                        latlon_precision=cfg['PARAM']['latlon_precision'])
+
+# Select full water years
+start_date_WY, end_date_WY = my_functions.find_full_water_years_within_a_range(\
+                                dict_s_total_runoff[dict_s_total_runoff.keys()[0]].index[0],\
+                                dict_s_total_runoff[dict_s_total_runoff.keys()[0]].index[-1])
+
+for lat_lon in dict_s_total_runoff.keys():
+    s_total_runoff = dict_s_total_runoff[lat_lon]
+    dict_s_total_runoff[lat_lon] = my_functions.select_time_range(\
+                                        s_total_runoff, start_date_WY, end_date_WY)
 
 #===============================================================#
 # Write into VIC output format, convert to daily data if not already
@@ -36,38 +47,35 @@ dict_s_total_runoff = my_functions.read_inverse_route_output(\
 #   (Here, SKIP is set to -99, RUNOFF is set to total runoff, BASEFLOW is set to 0)
 # These output files are for VIC calibration and routing purpose
 #===============================================================#
-#for lat_lon in dict_s_total_runoff.keys():
-#    print 'Writing grid cell {}...'.format(lat_lon)
-#    filename = '{}/{}_{}'.format(cfg['OUTPUT']['output_VIC_runoff_dir'], \
-#                                 cfg['OUTPUT']['output_VIC_prefix'], \
-#                                 lat_lon)
-#    # Convert to daily data if not already
-#    if cfg['PARAM']['time_step']!=24:
-#        print 'Currently do not support non-daily data!'
-#        exit()
-#    else:
-#        s_total_runoff = dict_s_total_runoff[lat_lon]
-#    # Write data to file
-#    f = open(filename, 'w')
-#    for i in range(len(s_total_runoff)):
-#        f.write('{:4d} {:02d} {:02d} -99 -99 {:f} 0\n'\
-#                    .format(s_total_runoff.index[i].year, s_total_runoff.index[i].month, \
-#                            s_total_runoff.index[i].day, s_total_runoff[i]))
-#    f.close()
+for lat_lon in dict_s_total_runoff.keys():
+    print 'Writing grid cell {}...'.format(lat_lon)
+    filename = '{}/{}_{}'.format(cfg['OUTPUT']['output_VIC_runoff_dir'], \
+                                 cfg['OUTPUT']['output_VIC_prefix'], \
+                                 lat_lon)
+    # Convert to daily data if not already
+    if cfg['PARAM']['time_step']!=24:
+        print 'Currently do not support non-daily data!'
+        exit()
+    else:
+        s_total_runoff = dict_s_total_runoff[lat_lon]
+    # Write data to file
+    f = open(filename, 'w')
+    for i in range(len(s_total_runoff)):
+        f.write('{:4d} {:02d} {:02d} -99 -99 {:f} 0\n'\
+                    .format(s_total_runoff.index[i].year, s_total_runoff.index[i].month, \
+                            s_total_runoff.index[i].day, s_total_runoff.iloc[i]))
+    f.close()
 
 #===============================================================#
 # Calculate stats for runoff
 #===============================================================#
-start_date_WY, end_date_WY = my_functions.find_full_water_years_within_a_range(\
-                                dict_s_total_runoff[dict_s_total_runoff.keys()[0]].index[0],\
-                                dict_s_total_runoff[dict_s_total_runoff.keys()[0]].index[-1])
 for lat_lon in dict_s_total_runoff.keys():
     print 'Calculating stats for grid cell {}...'.format(lat_lon)
     s_total_runoff = dict_s_total_runoff[lat_lon]
-    #--- Select full water year ---#
-    s_total_runoff = my_functions.select_time_range(s_total_runoff, \
-                                                    start_date_WY, \
-                                                    end_date_WY)
+#    #--- Select full water year ---#
+#    s_total_runoff = my_functions.select_time_range(s_total_runoff, \
+#                                                    start_date_WY, \
+#                                                    end_date_WY)
 
     #--- Calculate monthly data and write to file ---#
     # Calculate
