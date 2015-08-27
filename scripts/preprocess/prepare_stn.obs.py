@@ -3,6 +3,7 @@
 ''' This script reads in streamflow gauge data and convert to inverse routing input format '''
 
 import datetime as dt
+import pandas as pd
 import argparse
 import my_functions
 
@@ -29,12 +30,16 @@ while 1:
     if line=="":
         break
     list_stn.append(line.split()[0])
-    dict_stn_info[line.split()[0]] = [float(line.split()[1]), 
-                                      float(line.split()[2]), 
-                                      int(line.split()[3])]
+    if cfg['INPUT']['data_formst']=='USGS':
+        dict_stn_info[line.split()[0]] = [float(line.split()[1]), 
+                                          float(line.split()[2]), 
+                                          int(line.split()[3])]
+    else:
+        dict_stn_info[line.split()[0]] = [float(line.split()[1]), 
+                                          float(line.split()[2])]
 
 #======================================================#
-# Load data (if data is not USGS format, need to change this section!!)
+# Load data
 #======================================================#
 # Load data and select time range needed
 dict_df_stn = {}  # a dictionary of station data
@@ -42,8 +47,11 @@ dict_df_stn = {}  # a dictionary of station data
 for stn in list_stn:  # for each gauge station, load data
     # Load data
     filename = '{}/{}'.format(cfg['INPUT']['stn_data_dir'], stn)
-    column = dict_stn_info[stn][2]
-    dict_df_stn[stn] = my_functions.read_USGS_data(filename, [column], ['Discharge'])
+    if cfg['INPUT']['data_formst']=='USGS':
+        column = dict_stn_info[stn][2]
+        dict_df_stn[stn] = my_functions.read_USGS_data(filename, [column], ['Discharge'])
+    elif cfg['INPUT']['data_formst']=='Lohmann':
+        dict_df_stn[stn] = my_functions.read_Lohmann_route_daily_output(filename)
 
     # Select time range needed
     dict_df_stn[stn] = my_functions.select_time_range(dict_df_stn[stn], \
@@ -64,7 +72,7 @@ f.close()
 
 # Write basin.stn.obs
 #   Put all station data into one dataframe
-df_stn_all = dict_df_stn[list_stn[0]]
+df_stn_all = pd.DataFrame(dict_df_stn[list_stn[0]])
 df_stn_all.columns = ['stn_1']
 for i in range(1,len(list_stn)):
     df_stn_all['stn_{}'.format(i+1)] = dict_df_stn[list_stn[i]]

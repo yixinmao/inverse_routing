@@ -269,6 +269,29 @@ def read_VIC_output(file, data_columns, data_names, header=False, date_col=3):
     
     return df
 
+#==============================================================
+#==============================================================
+
+def read_Lohmann_route_daily_output(path):
+    ''' This function reads Lohmann routing model daily output
+
+    Input: daily output file path
+    Return: a pd.Series object with datetime as index and flow[cfs] as data
+
+    '''
+
+    import pandas as pd
+    import datetime as dt
+
+    parse = lambda x: dt.datetime.strptime(x, '%Y %m %d')
+
+    # load data
+    df = pd.read_csv(path, delim_whitespace=True, parse_dates=[[0,1,2]], index_col=0, date_parser=parse, header=None)
+    df = df.rename(columns={3:'flow'})
+    # convert data to pd.Series
+    s = df.ix[:,0]
+
+    return s
 
 
 
