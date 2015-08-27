@@ -156,22 +156,30 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
     if n_runs==3:  # if 3 runs
         for key in dict_list_s.keys():  # for each grid cell
             print 'Combining grid cell {}...'.format(key)
-            dict_s[key] = pd.Series()  # initialize combined Series
-            s1 = dict_list_s[key][0]
-            s2 = dict_list_s[key][1]
-            s3 = dict_list_s[key][2]
-            first_date = start_date_data + dt.timedelta(hours=dskp*time_step)
-            last_date = sorted([s1.index[-1], s2.index[-1], s3.index[-1]])[0]
-            for i, date in enumerate(pd.date_range(\
-                        first_date, last_date, freq='{:d}H'.format(time_step))):
-                        # Loop over each time step
-                if (i/dskp)%3==0:  # use s1
-                    dict_s[key][date] = s1[date]
-                elif (i/dskp)%3==1:  # use s2
-                    dict_s[key][date] = s2[date]
-                else:  # use s3
-                    dict_s[key][date] = s3[date]
-                
+            # Initialize combined Series
+            dict_s[key] = pd.Series()
+            # Select out Series at this grid cell
+            s = [dict_list_s[key][0], dict_list_s[key][1], dict_list_s[key][2]]
+            # Determine the middle slices of each of the three runs
+            slice = []
+            for r in range(3):
+                slice.append([])
+                i = 0
+                while 1:
+                    if 40+i*60>len(s[r]):
+                        break
+                    slice[r] = slice[r] + range(20+i*60, 40+i*60)
+                    i = i + 1
+            # Select out the slices from each of the three runs, and combine
+            s_sliced = []
+            for r in range(3):
+                s_sliced.append(s[r].iloc[slice[r]])
+
+            # Comine slices from three runs together into one time series
+            s_combined = pd.concat(s_sliced).sort_index()
+            
+            dict_s[key] = s_combined
+
     elif n_runs==1:  # if 1 run, directly copy data
         for key in dict_list_s.keys():
             dict_s[key] = dict_list_s[key][0]
