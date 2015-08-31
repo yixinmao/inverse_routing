@@ -15,14 +15,20 @@ cfg = my_functions.read_config(args.cfg)
 #===============================================================#
 # Read data
 #===============================================================#
-dict_path = {}  # {station_name: [path_for_orig_obs, path_for_routed, column in USGS data]}
+dict_path = {}  # {station_name: [path_for_orig_obs, path_for_routed, (column in USGS data)]}
 f = open(cfg['INPUT']['cmp_routed_obs_list_path'], 'r')
 while 1:
     line = f.readline().rstrip("\n")
     line_split = line.split()
     if line=="":
         break
-    dict_path[line_split[0]] = [line_split[1], line_split[2], int(line_split[3])]
+    if cfg['INPUT']['obs_format']=='USGS':
+        dict_path[line_split[0]] = [line_split[1], line_split[2], int(line_split[3])]
+    elif cfg['INPUT']['obs_format']=='Lohmann':
+        dict_path[line_split[0]] = [line_split[1], line_split[2]]
+    else:
+        print 'Error: unsupported observation data format!'
+        exit()
 f.close()    
 
 # Read in routed streamflow from inverted runoff
@@ -39,13 +45,16 @@ for stn in dict_path:
                                                               start_date_WY, \
                                                               end_date_WY)
 
-# Read in original station obs (currently USGS format; need to change this section if not!!!)
+# Read in original station obs rmat
 dict_obs = {}  # {station_name: pd.Series of daily data} [unit: cfs]
 for stn in dict_path:
     # Load data
     filename = dict_path[stn][0]
-    column = dict_path[stn][2]
-    dict_obs[stn] = my_functions.read_USGS_data(filename, [column], ['Discharge'])
+    if cfg['INPUT']['obs_format']=='USGS':
+        column = dict_path[stn][2]
+        dict_obs[stn] = my_functions.read_USGS_data(filename, [column], ['Discharge'])
+    elif cfg['INPUT']['obs_format']=='Lohmann':
+        dict_obs[stn] = my_functions.read_Lohmann_route_daily_output(filename)
 
     # Select the same range as Lohmann routed flow
     dict_obs[stn] = my_functions.select_time_range(dict_obs[stn], \

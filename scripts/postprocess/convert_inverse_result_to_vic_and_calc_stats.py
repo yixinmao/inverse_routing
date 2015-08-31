@@ -67,59 +67,55 @@ for lat_lon in dict_s_total_runoff.keys():
                             s_total_runoff.index[i].day, s_total_runoff.iloc[i]))
     f.close()
 
-#===============================================================#
-# Calculate stats for runoff
-#===============================================================#
-for lat_lon in dict_s_total_runoff.keys():
-    print 'Calculating stats for grid cell {}...'.format(lat_lon)
-    s_total_runoff = dict_s_total_runoff[lat_lon]
-#    #--- Select full water year ---#
-#    s_total_runoff = my_functions.select_time_range(s_total_runoff, \
-#                                                    start_date_WY, \
-#                                                    end_date_WY)
-
-    #--- Calculate monthly data and write to file ---#
-    # Calculate
-    s_monthly = my_functions.calc_monthly_data(s_total_runoff)
-    # Create subdirectories
-    dir_monthly = '{}/monthly'.format(cfg['OUTPUT']['output_stats_basedir'])
-    if not os.path.exists(dir_monthly):
-        os.makedirs(dir_monthly)
-    # Write output (format: <year> <month> <runoff, mm/day>)
-    filename = '{}/{}_monthly_{}'.format(dir_monthly, \
-                                         cfg['OUTPUT']['output_VIC_prefix'], \
-                                         lat_lon)
-    f = open(filename, 'w')
-    f.write('Year Month Total_runoff_mm_day\n')
-    for i in range(len(s_monthly)):
-        f.write('{:4d} {:02d} {:f}\n'\
-                    .format(s_monthly.index[i].year, s_monthly.index[i].month, \
-                            s_monthly[i]))
-    f.close()
-
-    #--- Calculate seasonality data and write to file ---#
-    # Calculate
-    s_seas = my_functions.calc_ts_stats_by_group(s_total_runoff, \
-                                                 'month', 'mean') # ndex is 1-12 (month)
-    # Create subdirectories
-    dir_seas = '{}/seasonality_WY{}_{}'.format(cfg['OUTPUT']['output_stats_basedir'], \
-                                                  start_date_WY.year+1, \
-                                                  end_date_WY.year)
-    if not os.path.exists(dir_seas):
-        os.makedirs(dir_seas)
-    # Write output (format: <month> <runoff, mm/day>)
-    filename = '{}/{}_seas_{}'.format(dir_seas, \
-                                         cfg['OUTPUT']['output_VIC_prefix'], \
-                                         lat_lon)
-    s_seas.to_csv(filename, sep=' ', header=['Total_runoff_mm_day'], \
-                  index=True, index_label='Month')
-    
-    
-
-
-
-
-
-
-
-
+##===============================================================#
+## Calculate stats for runoff
+##===============================================================#
+#for lat_lon in dict_s_total_runoff.keys():
+#    print 'Calculating stats for grid cell {}...'.format(lat_lon)
+#    s_total_runoff = dict_s_total_runoff[lat_lon]
+#
+#    #--- Calculate monthly data and write to file ---#
+#    # Calculate
+#    s_monthly = my_functions.calc_monthly_data(s_total_runoff)
+#    # Create subdirectories
+#    dir_monthly = '{}/monthly'.format(cfg['OUTPUT']['output_stats_basedir'])
+#    if not os.path.exists(dir_monthly):
+#        os.makedirs(dir_monthly)
+#    # Write output (format: <year> <month> <runoff, mm/day>)
+#    filename = '{}/{}_monthly_{}'.format(dir_monthly, \
+#                                         cfg['OUTPUT']['output_VIC_prefix'], \
+#                                         lat_lon)
+#    f = open(filename, 'w')
+#    f.write('Year Month Total_runoff_mm_day\n')
+#    for i in range(len(s_monthly)):
+#        f.write('{:4d} {:02d} {:f}\n'\
+#                    .format(s_monthly.index[i].year, s_monthly.index[i].month, \
+#                            s_monthly[i]))
+#    f.close()
+#
+#    #--- Calculate seasonality data and write to file ---#
+#    # Calculate
+#    s_seas = my_functions.calc_ts_stats_by_group(s_total_runoff, \
+#                                                 'month', 'mean') # ndex is 1-12 (month)
+#    # Create subdirectories
+#    dir_seas = '{}/seasonality_WY{}_{}'.format(cfg['OUTPUT']['output_stats_basedir'], \
+#                                                  start_date_WY.year+1, \
+#                                                  end_date_WY.year)
+#    if not os.path.exists(dir_seas):
+#        os.makedirs(dir_seas)
+#    # Write output (format: <month> <runoff, mm/day>)
+#    filename = '{}/{}_seas_{}'.format(dir_seas, \
+#                                         cfg['OUTPUT']['output_VIC_prefix'], \
+#                                         lat_lon)
+#    s_seas.to_csv(filename, sep=' ', header=['Total_runoff_mm_day'], \
+#                  index=True, index_label='Month')
+#    
+#    
+#
+#
+#
+#
+#
+#
+#
+#
