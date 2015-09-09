@@ -91,7 +91,6 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
         time_step: inverse routing time step [unit: hour]
         ksteps: max number of time steps the water needs to flow from the most upstream headwater to the most downstream gauge station; this is an stdout from inverse routing run
         latlon_precision: number of figures after decimal point for lat and lon
-
     Return:
         a dictionary; keys: 'lat_lon'; element: Series of total runoff
     '''
@@ -191,11 +190,9 @@ def read_inverse_route_output(output_dir, smooth_window, n_runs, skip_steps, sta
 
 def find_full_water_years_within_a_range(dt1, dt2):
     ''' This function determines the start and end date of full water years within a time range
-
     Input:
         dt1: time range starting time [dt.datetime]
         dt2: time range ending time [dt.datetime]
-
     Return:
         start and end date of full water years
     '''
@@ -226,12 +223,10 @@ def find_full_water_years_within_a_range(dt1, dt2):
 
 def select_time_range(data, start_datetime, end_datetime):
     ''' This function selects out the part of data within a time range
-
     Input:
         data: [dataframe/Series] data with index of datetime
         start_datetime: [dt.datetime] start time
         end_datetime: [dt.datetime] end time
-
     Return:
         Selected data (same object type as input)
     '''
@@ -250,7 +245,6 @@ def select_time_range(data, start_datetime, end_datetime):
 
 def calc_monthly_data(data):
     '''This function calculates monthly mean values
-
     Input: [DataFrame/Series] with index of time
     Return: a [DataFrame/Series] object, with monthly mean values (the same units as input data)
     '''
@@ -269,16 +263,13 @@ def wateryear(calendar_date):
 
 def calc_ts_stats_by_group(data, by, stat):
     '''This function calculates statistics of time series data grouped by year, month, etc
-
     Input:
         df: a [pd.DataFrame/Series] object, with index of time
         by: string of group by, (select from 'year' or 'month' or 'WY')
         stat: statistics to be calculated, (select from 'mean')
         (e.g., if want to calculate monthly mean seasonality (12 values), by='month' and stat='mean')
-
     Return:
         A [dateframe/Series] object, with group as index (e.g. 1-12 for 'month')
-
     Require:
         wateryear
         find_full_water_years_within_a_range(dt1, dt2)
@@ -302,7 +293,6 @@ def calc_ts_stats_by_group(data, by, stat):
             data_result = data_WY.groupby(lambda x:wateryear(x)).mean()
 
     return data_result
-
 
 
 

@@ -5,6 +5,7 @@
 import numpy as np
 import datetime as dt
 import os
+import pandas as pd
 import argparse
 import my_functions
 
@@ -42,6 +43,25 @@ for lat_lon in dict_s_total_runoff.keys():
                                         s_total_runoff, start_date_WY, end_date_WY)
 
 #===============================================================#
+# 1) Adjust negative runoff to zero;
+# 2) Rescale the whole time series so that water is balanced
+#===============================================================#
+print 'Adjusting negative runoff and rescaling...'
+for lat_lon in dict_s_total_runoff.keys():
+    s_total_runoff = dict_s_total_runoff[lat_lon]
+    # Original sum of water (with negative runoff)
+    sum_water_orig = sum(s_total_runoff)
+    # Set negative runoff to zero
+    s_total_runoff[s_total_runoff<0] = 0  
+    # Calculate new sum of water (higher than original)
+    sum_water_new = sum(s_total_runoff)
+    # Rescale the new runoff to keep original water balance
+    # new_series_rescaled = new_series * ( sum(orig) / sum(new) )
+    s_total_runoff = s_total_runoff * (sum_water_orig / sum_water_new)
+    # Put rescaled runoff to dict
+    dict_s_total_runoff[lat_lon] = s_total_runoff
+
+#===============================================================#
 # Write into VIC output format, convert to daily data if not already
 # (Lohmann routing input format)
 # Format: YYYY MM DD SKIP SKIP RUNOFF BASEFLOW
@@ -59,13 +79,25 @@ for lat_lon in dict_s_total_runoff.keys():
         exit()
     else:
         s_total_runoff = dict_s_total_runoff[lat_lon]
+
     # Write data to file
-    f = open(filename, 'w')
-    for i in range(len(s_total_runoff)):
-        f.write('{:4d} {:02d} {:02d} -99 -99 {:f} 0\n'\
-                    .format(s_total_runoff.index[i].year, s_total_runoff.index[i].month, \
-                            s_total_runoff.index[i].day, s_total_runoff.iloc[i]))
-    f.close()
+    df = pd.DataFrame()
+    df['year'] = s_total_runoff.index.year
+    df['month'] = s_total_runoff.index.month
+    df['day'] = s_total_runoff.index.day
+    df['runoff'] = s_total_runoff.values
+    df['skip'] = -99
+    df['zero'] = 0
+    df[['year', 'month', 'day', 'skip', 'skip', 'runoff', 'zero']].\
+            to_csv(filename, sep='\t', header=None, index=False)
+
+#    # Write data to file
+#    f = open(filename, 'w')
+#    for i in range(len(s_total_runoff)):
+#        f.write('{:4d} {:02d} {:02d} -99 -99 {:f} 0\n'\
+#                    .format(s_total_runoff.index[i].year, s_total_runoff.index[i].month, \
+#                            s_total_runoff.index[i].day, s_total_runoff.iloc[i]))
+#    f.close()
 
 ##===============================================================#
 ## Calculate stats for runoff
