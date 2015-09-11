@@ -57,13 +57,17 @@ for lat_lon in dict_s_total_runoff.keys():
     sum_mon_new = s_total_runoff.resample("M", how='sum')
     # Rescale the new runoff to keep original water balance
     # For each month, new_series_rescaled = new_series * ( sum(orig) / sum(new) )
+    # Except when sum(orig)=0 or sum(new)=0, set scale to 0 (thus flow is 0)
     s_mon_scale = sum_mon_orig / sum_mon_new
+    s_mon_scale[sum_mon_orig<0] = 0  # if sum of data in this month is negative
+    s_mon_scale[sum_mon_new==0] = 0  # if all data in this month is negative
+
     s_daily_scale = s_mon_scale.resample("D", fill_method='bfill')
     s_beginning = pd.Series(s_mon_scale[0], \
                             index=pd.date_range(s_total_runoff.index[0], \
                                                 s_daily_scale.index[0]-dt.timedelta(days=1), \
                                                 freq='D'))
-    s_daily_scale = pd.concat([s_beginning, s_daily_scale])
+    s_daily_scale = pd.concat([s_beginning, s_daily_scale]).sort_index()
     s_total_runoff = s_total_runoff * s_daily_scale
     # Remove small negative error
     s_total_runoff[s_total_runoff<0] = 0  
