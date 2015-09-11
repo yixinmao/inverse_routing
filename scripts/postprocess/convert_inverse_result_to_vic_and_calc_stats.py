@@ -44,20 +44,29 @@ for lat_lon in dict_s_total_runoff.keys():
 
 #===============================================================#
 # 1) Adjust negative runoff to zero;
-# 2) Rescale the whole time series so that water is balanced
+# 2) Rescale each month so that water is balanced within the month
 #===============================================================#
-print 'Adjusting negative runoff and rescaling...'
 for lat_lon in dict_s_total_runoff.keys():
+    print 'Adjusting negative runoff and rescaling {}...'.format(lat_lon)
     s_total_runoff = dict_s_total_runoff[lat_lon]
     # Original sum of water (with negative runoff)
-    sum_water_orig = sum(s_total_runoff)
+    sum_mon_orig = s_total_runoff.resample("M", how='sum')
     # Set negative runoff to zero
     s_total_runoff[s_total_runoff<0] = 0  
     # Calculate new sum of water (higher than original)
-    sum_water_new = sum(s_total_runoff)
+    sum_mon_new = s_total_runoff.resample("M", how='sum')
     # Rescale the new runoff to keep original water balance
-    # new_series_rescaled = new_series * ( sum(orig) / sum(new) )
-    s_total_runoff = s_total_runoff * (sum_water_orig / sum_water_new)
+    # For each month, new_series_rescaled = new_series * ( sum(orig) / sum(new) )
+    s_mon_scale = sum_mon_orig / sum_mon_new
+    s_daily_scale = s_mon_scale.resample("D", fill_method='bfill')
+    s_beginning = pd.Series(s_mon_scale[0], \
+                            index=pd.date_range(s_total_runoff.index[0], \
+                                                s_daily_scale.index[0]-dt.timedelta(days=1), \
+                                                freq='D'))
+    s_daily_scale = pd.concat([s_beginning, s_daily_scale])
+    s_total_runoff = s_total_runoff * s_daily_scale
+    # Remove small negative error
+    s_total_runoff[s_total_runoff<0] = 0  
     # Put rescaled runoff to dict
     dict_s_total_runoff[lat_lon] = s_total_runoff
 
