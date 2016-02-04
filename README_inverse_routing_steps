@@ -25,6 +25,7 @@ Step 2. Generate station files
         'basin.stn.list' - gauge station information list;
         'basin.stn.obs' - gauge data
     These two files should be put under ./input/basin.inputs
+    **NOTE** The second column in the generated 'basin.stn.list' must not contain '.'; otherwise the inverse routing cannot run. If 'basin.stn.list' contains '.', can change this column; as long as each station has a unique code for this column, the inverse routing can run succesfully (e.g., can change this column to 1, 2, 3, ...)
 
 Step 3. Generate initial runoff field file
     Run './scripts/preprocess/prepare_initial_runoff.py', with a config file
