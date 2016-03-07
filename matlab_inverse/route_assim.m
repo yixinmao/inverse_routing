@@ -1,5 +1,5 @@
 function route_main(basin, nst, sst, skpst)
-flow_vel = 1.4;      % flow velocity    [m/s]
+flow_vel = 1.5;      % flow velocity    [m/s]
 flow_dif = 0.1;      % flow diffusivity [m^2/s]
 tstep    = 86400;    % timestep size    [s]
 
@@ -315,7 +315,7 @@ for w=1:nwins
     % Kalman Update
     runoff2_combine_post = runoff2_combine + K*innov;
     
-    runoff2_combine_post(runoff2_combine_post<0) = 0;
+%    runoff2_combine_post(runoff2_combine_post<0) = 0;  % Hacked by Yixin
     
     % recalculate streamflow using updated runoff fields and
     % reset routing initial condition for next smoothing window
@@ -367,7 +367,6 @@ for i=1:nwins
     ed=i*ssteps;
     data_2_w(:,st:ed)=fliplr(data_2_w(:,st:ed));
 end
-
 
 [bm,bn]=size(basin_mask);
 [m,n]=find(~isnan(basin_mask));
