@@ -23,7 +23,8 @@ for g=1:ngauges
     flow_length_gauge_compact = reshape(squeeze(flow_length_gauge(:, :, g)), nrows*ncols, 1);
     flow_length_gauge_compact(isnan(flow_length_gauge_compact)) = [];
     
-    travel_steps = round(flow_length_gauge_compact/flow_vel/tstep) + 1;
+%    travel_steps = round(flow_length_gauge_compact/flow_vel/tstep) + 1;
+    travel_steps = floor(flow_length_gauge_compact/flow_vel/tstep) + 1;  % Bug fixed by Yixin
     
     basin_mask_gauge_compact = reshape(squeeze(basin_mask_gauge(:, :, g)), nrows*ncols, 1);
     basin_mask_gauge_compact(isnan(basin_mask_gauge_compact)) = [];

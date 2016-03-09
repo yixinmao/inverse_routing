@@ -215,9 +215,11 @@ for s=1:ksteps
     runoff2_compact = circshift(runoff2_compact, [ncells 0]);
     runoff2_compact(1:ncells) = runoff2_tmp_compact;
         
-    % shift for one step
-    runoff2_compact = circshift(runoff2_compact, [ncells 0]);
-    runoff2_compact(1:ncells) = runoff2_tmp_compact;
+%============= Hacked by Yixin - these lines seem to be duplicated =============%
+%    % shift for one step
+%    runoff2_compact = circshift(runoff2_compact, [ncells 0]);
+%    runoff2_compact(1:ncells) = runoff2_tmp_compact;
+%======================== Hacked by Yixin - End ============================%
     
     % streamflow_gauge2(:, s) = H * runoff2_compact;
 
