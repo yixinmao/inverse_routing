@@ -1,0 +1,19 @@
+[INPUT]
+# Flow direction file header (6 lines)
+fdir_header_path: /raid2/ymao/VIC_RBM_east_RIPS/inverse_routing/input/c2.iceha.test.inputs/c2.iceha.test.header
+# Flow direction file (without header lines)
+fdir_path: /raid2/ymao/VIC_RBM_east_RIPS/inverse_routing/input/c2.iceha.test.inputs/c2.iceha.test.dir
+#----- VIC output section -----#
+# VIC output netCDF file
+vic_output_nc: /raid9/oriana/bpa/met_dataset_runs/historical_october2015/output/nc/merged_historical.19600101-20111231.nc
+# VIC runoff variable names
+vic_runoff_variables: Runoff,Baseflow
+[PARAM]
+# Interested date range
+start_date: 1988,1,1
+end_date: 2002,12,31
+[OUTPUT]
+# basin.runoff file (i.e., initial runoff guess field, input to inverse routing)
+basin_runoff_path: /raid2/ymao/VIC_RBM_east_RIPS/inverse_routing/input/c2.iceha.test.inputs/c2.iceha.test.runoff
+
+
