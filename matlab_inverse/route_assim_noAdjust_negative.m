@@ -30,7 +30,7 @@ fclose(fid);
 georef = [xllcorner yllcorner cellsize NODATA_value];
 
 % read flow directions
-flow_dir = dlmread([basedir basin '.inputs/' basin '.dir']);
+flow_dir = dlmread([basedir basin '.inputs/' basin '.dir'  ]);
 flow_dir(flow_dir<0) = NaN;
 [nrows ncols] = size(flow_dir);
 ncells = nansum(nansum(flow_dir*0+1));
@@ -71,9 +71,9 @@ end
 % read gauge info
 gauge_list = dlmread([basedir basin '.inputs/' basin '.stn.list']);
 
-streamflow_usgs = dlmread([basedir basin '.inputs/' basin '.stn.obs']);
-streamflow_usgs(1:spteps,:) = [];
-streamflow_usgs = streamflow_usgs'/35.3146662127; %% 
+streamflow_usgs = dlmread([basedir basin '.inputs/' basin '.stn.obs']);  % read in gauge flow data
+streamflow_usgs(1:spteps,:) = [];  % delete the first #spteps days to skip
+streamflow_usgs = streamflow_usgs'/35.3146662127; %% [n_gauges * nsteps]; convert cfs to m3/s
 
 %% do basin and gauge analysis
 [ basin_mask grid_lat grid_lon flow_length grid_area flow_accum ...
@@ -85,7 +85,10 @@ ngauges = length(gauge_i);
 
 if (usgs_flag)
     for g=1:ngauges
-        streamflow_usgs(g, :) = streamflow_usgs(g, :) .* gauge_area(g) ./ (gauge_list(g, 5)*1609*1609) * tstep;
+        % streamflow_usgs(g, :) = streamflow_usgs(g, :) .* gauge_area(g) ./ (gauge_list(g, 5)*1609*1609) * tstep;
+        % gauge_area(g) ./ (gauge_list(g, 5)*1609*1609) == 1
+        streamflow_usgs(g, :) = streamflow_usgs(g, :) .* tstep;
+        % This step converts streamflow_usgs to [m3/day]
     end
 end
 
@@ -108,8 +111,9 @@ cmap(cmap==0) = 1;
 
 %% start to route
 
-
-nwins = floor((nsteps-ksteps)/ssteps);
+% the first ksteps are model spin-up and the last ksteps are incompletely updated
+% effective length of each smoothing window is ssteps-ksteps
+nwins = floor((nsteps-ksteps*2)/(ssteps-ksteps));  % number of windows
 
 runoff1_compact = zeros(ncells*ksteps, 1);
 runoff2_compact = zeros(ncells*ksteps, 1);
@@ -117,9 +121,7 @@ runoff2_compact = zeros(ncells*ksteps, 1);
 runoff1_combine = zeros(ncells*ssteps, 1);
 runoff2_combine = zeros(ncells*ssteps, 1);
 
-% runoff1_save = zeros(ncells*ssteps, nwins);
-% runoff2_save = zeros(ncells*ssteps, nwins);
-runoff2_save_post = zeros(ncells*ssteps, nwins);
+runoff2_save_post = zeros(ncells*(ssteps-ksteps), nwins);
 
 Hprime = sparse(ngauges*ssteps, ncells*ssteps);
 
@@ -131,11 +133,6 @@ streamflow_gauge1_all = zeros(ngauges, nsteps-ksteps);
 streamflow_gauge2_all = zeros(ngauges, nsteps-ksteps);
 streamflow_gauge2_post_all = zeros(ngauges, nsteps-ksteps);
 
-runoff_rms_prio = zeros(nsteps-ksteps, 1);
-runoff_rms_post = zeros(nsteps-ksteps, 1);
-
-runoff_bias_prio = zeros(nsteps-ksteps, 1);
-runoff_bias_post = zeros(nsteps-ksteps, 1);
 
 % assemble H'
 for s=1:ssteps
@@ -148,82 +145,44 @@ for s=1:ssteps
     end
 end
 
-flag_svd = false;
-
-if (flag_svd)
-    % Kalman gain K is: K = P * Hprime' * inv(Hprime * P * Hprime');
-    % this can avoid inversion every smoothing window
-    [U, S, V] = svds(Hprime, ngauges*ssteps);
-    Sinv = diag(1./diag(S));
-end
-
 %
 [basedir, basin, '.inputs/', basin, '.runoff']  % hacked by Yixin
-[basedir, basin, '.inputs/', basin, '.runoff']
-fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r'); % hacked by Yixin
+%%% fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r'); % hacked by Yixin
 fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
+
+% read everything all in once to save seek/rewind time
 
 % skip the first spteps days
 for skipi=1:spteps
-    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
+%%%    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
     runoff2 = fscanf(fin2, '%f', [nrows ncols]);
 end
 
+runoff2_input = zeros(ncells, nsteps);
+for s=1:nsteps
+
+    % read runoff
+    runoff2 = fscanf(fin2, '%f', [nrows ncols]);
+    runoff2 = runoff2.* basin_mask/1000.*grid_area;  % [m3/day]
+    fillval = mean(runoff2(runoff2>0));
+    runoff2(runoff2<=0) = fillval;
+
+    runoff2_tmp_compact = runoff2(:);
+    runoff2_tmp_compact(isnan(runoff2_tmp_compact)) = [];  % [ncells*1]
+    runoff2_input(:, s) = runoff2_tmp_compact;
+    
+end
+
+fclose(fin2);
+
 % model spin-up
-null_runoff=basin_mask;
-null_runoff(~isnan(basin_mask))=tmpa_mean;
 
 for s=1:ksteps
     
-    % read precipitation
-%    prec1 = fread(fin1, [ncols nrows], 'float32');
-%    prec1 = flipud(prec1').*basin_mask;
-    
-    % read runoff
-    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
-    runoff1 = runoff1.* basin_mask/1000.*grid_area;
-    fillval = mean(runoff1(runoff1>0));
-    runoff1(runoff1<=0) = fillval;
-
-    % Mu changes this
-%    runoff1=null_runoff;
-    
-    
-    runoff1_tmp_compact = runoff1(:);
-    runoff1_tmp_compact(isnan(runoff1_tmp_compact)) = [];
-    
-    % shift for one step
-    runoff1_compact = circshift(runoff1_compact, [ncells 0]);
-    runoff1_compact(1:ncells) = runoff1_tmp_compact;
-        
-    % streamflow_gauge1(:, s) = H * runoff1_compact;
-    
-    % read precipitation
-%    prec2 = fread(fin2, [ncols nrows], 'float32');
-    
-    % read runoff
-    runoff2 = fscanf(fin2, '%f', [nrows ncols]);
-    
-    
-    % Mu changes this
-%    runoff2=null_runoff;
-    
-    
-    runoff2_tmp_compact = runoff1_tmp_compact;
-    
     % shift for one step
     runoff2_compact = circshift(runoff2_compact, [ncells 0]);
-    runoff2_compact(1:ncells) = runoff2_tmp_compact;
-        
-%============= Hacked by Yixin - these lines seem to be duplicated =============%
-%    % shift for one step
-%    runoff2_compact = circshift(runoff2_compact, [ncells 0]);
-%    runoff2_compact(1:ncells) = runoff2_tmp_compact;
-%======================== Hacked by Yixin - End ============================%
+    runoff2_compact(1:ncells) = runoff2_input(:, s);
     
-    % streamflow_gauge2(:, s) = H * runoff2_compact;
-
-
 end
 
 % routing and assimilation
@@ -234,84 +193,50 @@ for w=1:nwins
     % record routing initial condition
     runoff2_init_compact = runoff2_compact;
     
+    % rewind for ksteps
+    if (w>1)
+        runoff2_compact = runoff2_compact_last;
+    end
+    
     for s=1:ssteps
     
-        % read precipitation
-%        prec1 = fread(fin1, [ncols nrows], 'float32');
-%        prec1 = flipud(prec1').*basin_mask;
-    
-        % read runoff
-%        runoff1 = fscanf(fin1, '%f', [ncols nrows]);
-%        runoff1 = runoff1.* basin_mask/1000.*grid_area;
-%        fillval = mean(runoff1(runoff1>0));
-%        runoff1(runoff1<=0) = fillval;
-    
-%        runoff1_tmp_compact = runoff1(:);
-%        runoff1_tmp_compact(isnan(runoff1_tmp_compact)) = [];
-    
-        % shift for one step
-%        runoff1_compact = circshift(runoff1_compact, [ncells 0]);
-%        runoff1_compact(1:ncells) = runoff1_tmp_compact;
-        
-%        streamflow_gauge1(:, s) = H * runoff1_compact;
-    
-        % read precipitation
-%        prec2 = fread(fin2, [ncols nrows], 'float32');
-%        prec2 = flipud(prec2').*basin_mask;
-    
-        % read runoff
-        runoff2 = fscanf(fin2, '%f', [nrows ncols]);
-        runoff2 = runoff2.* basin_mask/1000.*grid_area;
-        fillval = mean(runoff2(runoff2>0));
-        runoff2(runoff2<=0) = fillval;
-    
-        runoff2_tmp_compact = runoff2(:);
-        runoff2_tmp_compact(isnan(runoff2_tmp_compact)) = [];
+        s_global = ksteps+(ssteps-ksteps)*(w-1)+s;
         
         % shift for one step
         runoff2_compact = circshift(runoff2_compact, [ncells 0]);
-        runoff2_compact(1:ncells) = runoff2_tmp_compact;
+        runoff2_compact(1:ncells) = runoff2_input(:, s_global);
     
-        streamflow_gauge2(:, s) = H * runoff2_compact;
-    
-        % filling up H' and x'
-        runoff1_combine(ncells*(ssteps-s)+1:ncells*(ssteps-s+1)) = runoff1_tmp_compact;
-        runoff2_combine(ncells*(ssteps-s)+1:ncells*(ssteps-s+1)) = runoff2_tmp_compact;
+        streamflow_gauge2(:, s) = H * runoff2_compact;  % this is one "big row" in ( H'xt' + L'x(t-k)' )
+                                                        % (each "big row" has ngauges number of rows)
+               % When putting into streamflow_gauge2, the "big row" becomes
+               % "big column"
 
+        % filling up H' and x'
+        runoff2_combine(ncells*(ssteps-s)+1:ncells*(ssteps-s+1)) = runoff2_input(:, s_global);
+                % This is the current day;
+
+        % save the runoff data vector ksteps prior to the end of the smoothing window
+        if (s==ssteps-ksteps)
+            runoff2_compact_last = runoff2_compact;
+        end
+        
     end
-    
-    streamflow_gauge1_all(:, ssteps*(w-1)+1:ssteps*w) = streamflow_gauge1;
-    streamflow_gauge2_all(:, ssteps*(w-1)+1:ssteps*w) = streamflow_gauge2;
 
     % Kalman
 
-    if (flag_svd)
-        
-        Pinv = sparse(1:ncells*ssteps, 1:ncells*ssteps, 1./(runoff2_combine.*runoff2_combine+fillval*fillval), ncells*ssteps, ncells*ssteps, ncells*ssteps);
-        % Kalman gain K is: K = P * Hprime' * inv(Hprime * P * Hprime');
-        A = V'*Pinv*V;
-        A = Sinv*A*Sinv;
-        A = U*A*U';
-        K = Hprime'*A;
-        K = P*K;
-        
-    else
-        
-        % errors are proportional to runoff magnitude
-        P = sparse(1:ncells*ssteps, 1:ncells*ssteps, runoff2_combine.*runoff2_combine+fillval*fillval*100, ncells*ssteps, ncells*ssteps, ncells*ssteps);
+    % errors are proportional to runoff magnitude        
+    P = sparse(1:ncells*ssteps, 1:ncells*ssteps, runoff2_combine.*runoff2_combine+fillval*fillval*100, ncells*ssteps, ncells*ssteps, ncells*ssteps);
 
-        % Kalman gain K is: K = P * Hprime' * inv(Hprime * P * Hprime');    
-        A = sparse(P * Hprime');
-        B = sparse(Hprime * A);
-        K = inv(B);
-        K = A * K;
-        
-    end
+    % Kalman gain K is: K = P * Hprime' * inv(Hprime * P * Hprime');    
+    A = sparse(P * Hprime');
+    B = sparse(Hprime * A);
+    K = inv(B);
+    K = A * K;
     
     if (~usgs_flag)
-        innov = reshape(fliplr(streamflow_gauge1-streamflow_gauge2), ngauges*ssteps, 1);
+%%%        innov = reshape(fliplr(streamflow_gauge1-streamflow_gauge2), ngauges*ssteps, 1);
     else
-        innov = reshape(fliplr(streamflow_usgs(:, ksteps+ssteps*(w-1)+1:ksteps+ssteps*w)-streamflow_gauge2), ngauges*ssteps, 1);
+        innov = reshape(fliplr(streamflow_usgs(:, ksteps+(ssteps-ksteps)*(w-1)+1:ksteps+(ssteps-ksteps)*w+ksteps)-streamflow_gauge2), ngauges*ssteps, 1);
     end
 
     % Kalman Update
@@ -328,27 +253,31 @@ for w=1:nwins
         runoff2_compact(1:ncells) = runoff2_combine_post((ssteps-s)*ncells+1:(ssteps-s+1)*ncells);
         streamflow_gauge2_post(:, s) = H * runoff2_compact;
     end
-    streamflow_gauge2_post_all(:, ssteps*(w-1)+1:ssteps*w) = streamflow_gauge2_post;
     
+    if (w==1)
+        streamflow_gauge2_all(:, ssteps*(w-1)+1:ssteps*w) = streamflow_gauge2; % this is ( H'xt' + L'x(t-k)' ), 
+                                                                            % but reshaped to [ngauges*ssteps]
+        streamflow_gauge2_post_all(:, ssteps*(w-1)+1:ssteps*w) = streamflow_gauge2_post;
+    else
+        streamflow_gauge2_all(:, ksteps+(ssteps-ksteps)*(w-1)+1:ksteps+(ssteps-ksteps)*w) = streamflow_gauge2(:, ksteps+1:ssteps);
+        streamflow_gauge2_post_all(:, ksteps+(ssteps-ksteps)*(w-1)+1:ksteps+(ssteps-ksteps)*w) = streamflow_gauge2_post(:, ksteps+1:ssteps);
+    end
+        
     % test: resetting it to "true" initial condition for next window
     % note: in real assimilatin experiment, this is not possible.
     %if (tmpa_flag)
     %    runoff2_compact = runoff1_compact;
     %end
     
-    %runoff1_save(:, w) = runoff1_combine;
-    %runoff2_save(:, w) = runoff2_combine;
-    runoff2_save_post(:, w) = runoff2_combine_post;
+    % Final runoff results: ignore the first (?? shouldn't it be last??) ksteps in the window
+    runoff2_save_post(:, w) = runoff2_combine_post(ncells*ksteps+1:ncells*ssteps);
     
 end
 
 save([outpdir basin '/' initname '_init_' strmname '_strm/smooth' int2str(ssteps) '/all_data.mat'], ...
     'streamflow_gauge1_all', 'streamflow_gauge2_all', 'streamflow_gauge2_post_all', 'streamflow_usgs', ...
     'ncols', 'nrows', 'ncells', 'flow_vel', 'tstep', 'nsteps', 'ksteps', 'ssteps', 'nwins', 'cmap', ...
-    'basin_mask', 'grid_area', 'gauge_list', 'gauge_area', 'initname', 'strmname', 'runoff_bias_prio', 'runoff_bias_post', 'runoff_rms_prio', 'runoff_rms_post');
- 
-fclose(fin1);
-fclose(fin2);
+    'basin_mask', 'grid_area', 'gauge_list', 'gauge_area', 'initname', 'strmname');
 
 %% post save data into ascii
 
@@ -365,8 +294,8 @@ end
 
 % fliplr the output
 for i=1:nwins
-    st=1+(i-1)*ssteps;
-    ed=i*ssteps;
+    st=1+(i-1)*(ssteps-ksteps);
+    ed=i*(ssteps-ksteps);
     data_2_w(:,st:ed)=fliplr(data_2_w(:,st:ed));
 end
 
