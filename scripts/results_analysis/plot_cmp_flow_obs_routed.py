@@ -4,6 +4,7 @@
 
 import numpy as np
 import datetime as dt
+import pandas as pd
 import argparse
 import my_functions
 
@@ -13,82 +14,65 @@ args = parser.parse_args()
 cfg = my_functions.read_config(args.cfg)
 
 #===============================================================#
-# Read data
+# Read station list
 #===============================================================#
-dict_path = {}  # {station_name: [path_for_orig_obs, path_for_routed, (column in USGS data)]}
-f = open(cfg['INPUT']['cmp_routed_obs_list_path'], 'r')
+obs_filename_list = []
+lohm_filename_list = []
+
+f = open(cfg['INPUT']['site_list_path'])
 while 1:
     line = f.readline().rstrip("\n")
-    line_split = line.split()
     if line=="":
         break
-    if cfg['INPUT']['obs_format']=='USGS':
-        dict_path[line_split[0]] = [line_split[1], line_split[2], int(line_split[3])]
-    elif cfg['INPUT']['obs_format']=='Lohmann':
-        dict_path[line_split[0]] = [line_split[1], line_split[2]]
-    else:
-        print 'Error: unsupported observation data format!'
-        exit()
-f.close()    
 
-# Read in routed streamflow from inverted runoff
-dict_Lohmann_routed = {}  # {station_name: pd.Series of daily data} [unit: cfs]
-for stn in dict_path:
-    # Load data
-    s_Lohmann_routed = my_functions.read_Lohmann_route_daily_output(dict_path[stn][1])
-    dict_Lohmann_routed[stn] = s_Lohmann_routed
-    # Select full water years
-    start_date_WY, end_date_WY = my_functions.find_full_water_years_within_a_range(\
-                                                dict_Lohmann_routed[stn].index[0], \
-                                                dict_Lohmann_routed[stn].index[-1])
-    dict_Lohmann_routed[stn] = my_functions.select_time_range(dict_Lohmann_routed[stn], \
-                                                              start_date_WY, \
-                                                              end_date_WY)
+    obs_filename_list.append(line.split()[0])
+    lohm_filename_list.append('{}.day'.format(line.split()[1]))
 
-# Read in original station obs rmat
-dict_obs = {}  # {station_name: pd.Series of daily data} [unit: cfs]
-for stn in dict_path:
-    # Load data
-    filename = dict_path[stn][0]
-    if cfg['INPUT']['obs_format']=='USGS':
-        column = dict_path[stn][2]
-        dict_obs[stn] = my_functions.read_USGS_data(filename, [column], ['Discharge'])
-    elif cfg['INPUT']['obs_format']=='Lohmann':
-        dict_obs[stn] = my_functions.read_Lohmann_route_daily_output(filename)
-
-    # Select the same range as Lohmann routed flow
-    dict_obs[stn] = my_functions.select_time_range(dict_obs[stn], \
-                                                   start_date_WY, \
-                                                   end_date_WY)
-    # Convert data to cfs
-    if cfg['PARAM']['obs_flow_unit']=='cfs':
-        pass
+f.close()
 
 #===============================================================#
 # Plot and compare
 #===============================================================#
-for stn in dict_path:
+for i in range(len(obs_filename_list)):
+    obs_filename = obs_filename_list[i]
+    lohm_filename = lohm_filename_list[i]
+    stn = obs_filename
+    print 'Plotting {}...'.format(stn)
+
+    # Load Lohmann routed flow
+    s_Lohmann_routed = my_functions.read_Lohmann_route_daily_output('{}/{}'.format(cfg['INPUT']['Lohmann_output_dir'], lohm_filename))
+    # Load obs. flow
+    if cfg['INPUT']['obs_format']=='Lohmann':
+        s_obs = my_functions.read_Lohmann_route_daily_output('{}/{}'.format(cfg['INPUT']['obs_dir'], obs_filename))
+
+    # Select full water years from Lohmann routed flow
+    start_date_WY, end_date_WY = my_functions.find_full_water_years_within_a_range(\
+                                                s_Lohmann_routed.index[0], \
+                                                s_Lohmann_routed.index[-1])
+    s_Lohmann_routed = s_Lohmann_routed.truncate(before=start_date_WY, after=end_date_WY)
+    s_obs = s_obs.truncate(before=start_date_WY, after=end_date_WY)
+
     # Plot daily
     fig = my_functions.plot_time_series(\
-        plot_date=True, list_s_data=[dict_obs[stn], dict_Lohmann_routed[stn]], \
+        plot_date=True, list_s_data=[s_obs, s_Lohmann_routed], \
         list_style=['b-', 'r--'], list_label=['Obs.', 'Routed from inverse runoff'], \
-        plot_start=dict_Lohmann_routed[stn].index[0], \
-        plot_end=dict_Lohmann_routed[stn].index[-1], \
+        plot_start=dt.datetime(1992,10,1),  # dict_Lohmann_routed[stn].index[0], \
+        plot_end=dt.datetime(1993,9,30),   # dict_Lohmann_routed[stn].index[-1], \
         xlabel=None, ylabel='Streamflow (cfs)', \
         title='Daily, {}'.format(stn), fontsize=16, legend_loc='upper right', \
         time_locator=None, time_format='%Y/%m', \
         xtick_location=None, xtick_labels=None, \
         add_info_text=False, model_info=None, stats=None, \
-        show=True)
+        show=False)
     fig.savefig('{}/cmp_obs_routed.flow_daily.{}.png'\
                         .format(cfg['OUTPUT']['output_plot_dir'], stn), \
                 format='png')
     # Plot monthly
     fig = my_functions.plot_monthly_data(\
-        list_s_data=[dict_obs[stn], dict_Lohmann_routed[stn]], 
+        list_s_data=[s_obs, s_Lohmann_routed], 
         list_style=['b-', 'r--'], list_label=['Obs.', 'Routed from inverse runoff'], \
-        plot_start=dict_Lohmann_routed[stn].index[0], \
-        plot_end=dict_Lohmann_routed[stn].index[-1], \
+        plot_start=dt.datetime(1993,10,1),   # dict_Lohmann_routed[stn].index[0], \
+        plot_end=dt.datetime(1994,9,30),   # dict_Lohmann_routed[stn].index[-1], \
         xlabel=None, ylabel='Streamflow (cfs)', \
         title='Monthly, {}'.format(stn), fontsize=16, legend_loc='upper right', \
         time_locator=None, time_format='%Y/%m', \
@@ -99,7 +83,7 @@ for stn in dict_path:
                 format='png')
     # Plot seasonality
     fig = my_functions.plot_seasonality_data(\
-        list_s_data=[dict_obs[stn], dict_Lohmann_routed[stn]], \
+        list_s_data=[s_obs, s_Lohmann_routed], \
         list_style=['b-', 'r--'], list_label=['Obs.', 'Routed from inverse runoff'], \
         plot_start=1, plot_end=12, \
         xlabel=None, ylabel='Streamflow (cfs)', \
