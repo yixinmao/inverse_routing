@@ -147,14 +147,12 @@ end
 
 %
 [basedir, basin, '.inputs/', basin, '.runoff']  % hacked by Yixin
-%%% fin1 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r'); % hacked by Yixin
 fin2 = fopen([basedir, basin, '.inputs/', basin, '.runoff'], 'r');
 
 % read everything all in once to save seek/rewind time
 
 % skip the first spteps days
 for skipi=1:spteps
-%%%    runoff1 = fscanf(fin1, '%f', [nrows ncols]);
     runoff2 = fscanf(fin2, '%f', [nrows ncols]);
 end
 
@@ -191,11 +189,10 @@ for w=1:nwins
     
     w
     % record routing initial condition
-    runoff2_init_compact = runoff2_compact;
-    
-    % rewind for ksteps
-    if (w>1)
-        runoff2_compact = runoff2_compact_last;
+    if (w==1)
+        runoff2_init_compact = runoff2_compact;
+    else   % if w>1, rewind for ksteps
+        runoff2_compact = runoff2_init_compact;
     end
     
     for s=1:ssteps
@@ -215,10 +212,10 @@ for w=1:nwins
         runoff2_combine(ncells*(ssteps-s)+1:ncells*(ssteps-s+1)) = runoff2_input(:, s_global);
                 % This is the current day;
 
-        % save the runoff data vector ksteps prior to the end of the smoothing window
-        if (s==ssteps-ksteps)
-            runoff2_compact_last = runoff2_compact;
-        end
+%         % save the runoff data vector ksteps prior to the end of the smoothing window
+%         if (s==ssteps-ksteps)
+%             runoff2_compact_last = runoff2_compact;
+%         end
         
     end
 
@@ -252,6 +249,11 @@ for w=1:nwins
         runoff2_compact = circshift(runoff2_compact, [ncells 0]);
         runoff2_compact(1:ncells) = runoff2_combine_post((ssteps-s)*ncells+1:(ssteps-s+1)*ncells);
         streamflow_gauge2_post(:, s) = H * runoff2_compact;
+        
+        % save the runoff data vector ksteps prior to the end of the smoothing window
+        if (s==ssteps-ksteps)
+            runoff2_init_compact = runoff2_compact;
+        end
     end
     
     if (w==1)
@@ -269,7 +271,7 @@ for w=1:nwins
     %    runoff2_compact = runoff1_compact;
     %end
     
-    % Final runoff results: ignore the first (?? shouldn't it be last??) ksteps in the window
+    % Final runoff results: ignore the last ksteps in the window
     runoff2_save_post(:, w) = runoff2_combine_post(ncells*ksteps+1:ncells*ssteps);
     
 end
