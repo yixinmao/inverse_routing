@@ -1,5 +1,5 @@
 function route_main(basin, nst, sst, skpst)
-flow_vel = 1.5;      % flow velocity    [m/s]
+flow_vel = 1.4;      % flow velocity    [m/s]
 flow_dif = 0.1;      % flow diffusivity [m^2/s]
 tstep    = 86400;    % timestep size    [s]
 

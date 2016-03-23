@@ -45,6 +45,7 @@ while 1:
 dict_df_stn = {}  # a dictionary of station data
                   # {station_code: df}
 for stn in list_stn:  # for each gauge station, load data
+    print 'station {}'.format(stn)
     # Load data
     filename = '{}/{}'.format(cfg['INPUT']['stn_data_dir'], stn)
     if cfg['INPUT']['data_formst']=='USGS':
@@ -65,8 +66,8 @@ for stn in list_stn:  # for each gauge station, load data
 #======================================================#
 # Write basin.stn.list
 f = open(cfg['OUTPUT']['basin_stn_list_path'], 'w')
-for stn in list_stn:
-    f.write('1 {} {} {} 1000 1000 1000\n'.format(stn, dict_stn_info[stn][0], \
+for i, stn in enumerate(list_stn):
+    f.write('1 {} {} {} 1000 1000 1000\n'.format(i+1, dict_stn_info[stn][0], \
                                                  dict_stn_info[stn][1]+360))
 f.close()
 
